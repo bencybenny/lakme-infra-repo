@@ -1,0 +1,53 @@
+name: "infra creation for lakme-dev"
+on:
+  repository_dispatch:
+    types: [dev-deploy-event]
+  push:
+    branches:
+      - dev
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: "checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "terraform installation"
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.2
+
+      - name: "terraform init"
+        run: |
+          terraform init \
+             -backend-config="bucket=${{ secrets.dev_bucket }}" \
+             -backend-config="key=terraform.tfstate" \
+             -backend-config="region=${{ secrets.dev_region }}" \
+             -backend-config="access_key=${{ secrets.dev_accesskey }}" \
+             -backend-config="secret_key=${{ secrets.dev_secretkey }}" \
+      
+      - name: "terraform fmt"
+        run: terraform fmt
+
+
+      - name: "terraform validate"
+        run : terraform validate
+
+      - name: "terraform plan"
+        run: terraform plan -var-file="dev.tfvars"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.dev_accesskey }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.dev_secretkey }}
+          AWS_DEFAULT_REGION: ${{ secrets.dev_region }}
+      - name: Terraform apply
+        run: |
+          terraform apply \
+             -auto-approve \
+             -var-file=dev.tfvars
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.dev_accesskey }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.dev_secretkey }}
+          AWS_DEFAULT_REGION: ${{ secrets.dev_region }}
+

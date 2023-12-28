@@ -1,0 +1,54 @@
+name: "image creation for lakme-prod"
+on:
+  repository_dispatch:
+    types: [prod-deploy-event]
+  push:
+    branches:
+      - prod
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: "checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "terraform installation"
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.2
+
+      - name: "terraform init"
+        run: |
+          terraform init \
+             -backend-config="bucket=${{ secrets.prod_bucket }}" \
+             -backend-config="key=terraform.tfstate" \
+             -backend-config="region=${{ secrets.prod_region }}" \
+             -backend-config="access_key=${{ secrets.prod_accesskey }}" \
+             -backend-config="secret_key=${{ secrets.prod_secretkey }}" \
+      
+      - name: "terraform fmt"
+        run: terraform fmt
+
+
+      - name: "terraform validate"
+        run : terraform validate
+
+      - name: "terraform plan"
+        run: terraform plan -var-file="prod.tfvars"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.prod_accesskey }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.prod_secretkey }}
+          AWS_DEFAULT_REGION: ${{ secrets.prod_region }}
+
+      - name: Terraform apply
+        run: |
+          terraform apply \
+             -auto-approve \
+             -var-file=prod.tfvars
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.prod_accesskey }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.prod_secretkey }}
+          AWS_DEFAULT_REGION: ${{ secrets.prod_region }}
+
